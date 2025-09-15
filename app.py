@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 from langchain.chat_models import init_chat_model
 from flask import Flask, request
 from langchain_community.utilities import SQLDatabase
-from prompts import query_prompt_template
+from flask import jsonify
+from write_query import write_query
 
 load_dotenv()
 
@@ -39,10 +40,10 @@ def call_ai():
 def get_all_students():
 	
     db = SQLDatabase.from_uri("sqlite:///sql.db")
-    print(db.dialect)
-    print(db.get_usable_table_names())
-    result = db.run("SELECT * FROM student LIMIT 10;")
+    
+    query = write_query("Make the students in aplhabetical order", db, llm)
 
-    return result
+    return query
+
 if __name__ == '__main__':
 	app.run(port=8000)
