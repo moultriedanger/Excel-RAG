@@ -4,7 +4,9 @@ from langchain.chat_models import init_chat_model
 from flask import Flask, request
 from langchain_community.utilities import SQLDatabase
 from flask import jsonify
-from write_query import write_query
+from write_query import write_query, State  
+from langchain_community.tools.sql_database.tool import QuerySQLDatabaseTool
+
 
 load_dotenv()
 
@@ -16,8 +18,15 @@ response = llm.invoke("What is the capital of France?")
 
 print(response.content)
 
-
 app = Flask(__name__)
+
+def connect_to_db():
+    try:
+        db = SQLDatabase.from_uri("sqlite:///sql.db")  
+        return db
+    except Exception as e:
+        print(f"Failled to connect to db {e}")
+        return None
 
 @app.route('/')
 def home():
@@ -36,14 +45,37 @@ def call_ai():
 
     return llm_response.content
 
-@app.route("/students", methods= ["GET"])
+@app.route("/query", methods= ["POST"])
 def get_all_students():
-	
-    db = SQLDatabase.from_uri("sqlite:///sql.db")
-    
-    query = write_query("Make the students in aplhabetical order", db, llm)
+    print("Request Started")
 
+    json_response = request.json
+    question = json_response.get('query')
+
+    db = connect_to_db()
+
+    execute_query_tool = QuerySQLDatabaseTool(db=db)
+  
+    query = write_query({"question": question}, db, llm)
+    
     return query
+
+@app.route("/execute", methods= ["POST"])
+def ex_query_test():
+    print("Request Started")
+
+    json_response = request.json
+    question = json_response.get('query')
+
+    db = connect_to_db()
+
+    execute_query_tool = QuerySQLDatabaseTool(db=db)
+  
+    query = write_query({"question": question}, db, llm)
+
+    return {"result": execute_query_tool.invoke(query)}
+
+
 
 if __name__ == '__main__':
 	app.run(port=8000)
